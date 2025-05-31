@@ -1,0 +1,57 @@
+---
+# This file contains only tasks. Use it inside a role like roles/jenkins/tasks/main.yml
+
+- name: Remove any Jenkins source list entries
+  shell: |
+    find /etc/apt/sources.list.d -type f -exec sed -i '/pkg.jenkins.io/d' {} +
+    rm -f /etc/apt/sources.list.d/jenkins.list
+  ignore_errors: true
+
+- name: Remove old Jenkins keyring if exists
+  file:
+    path: /usr/share/keyrings/jenkins-keyring.gpg
+    state: absent
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+
+- name: Add Jenkins GPG key
+  shell: |
+    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/jenkins-keyring.gpg
+
+- name: Add Jenkins apt repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/"
+    filename: jenkins
+    state: present
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Ensure Jenkins service is started and enabled
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Get Jenkins initial admin password
+  command: cat /var/lib/jenkins/secrets/initialAdminPassword
+  become: true
+  register: jenkins_admin_pass
+
+- name: Show admin password
+  debug:
+    var: jenkins_admin_pass.stdout

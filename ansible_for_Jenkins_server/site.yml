@@ -1,0 +1,5 @@
+- name: Install Jenkins and Terraform
+  hosts: all
+  roles:
+    - jenkins
+    - terraform
